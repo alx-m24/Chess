@@ -80,6 +80,8 @@ void Board::set(std::string FEN)
 			break;
 		}
 	}
+
+	initMoveMaps();
 }
 
 void Board::reset()
@@ -99,7 +101,7 @@ void Board::update()
 
 #pragma region Selected Piece
 	if (selected.piece != NONE) {
-		setSelected(selected.piece, sf::Vector2i(selected.pos));
+		getMoves(selected.piece, sf::Vector2i(selected.pos));
 	}
 #pragma endregion
 
@@ -129,6 +131,8 @@ void Board::update()
 		}
 		else {
 			*piece = selected.piece;
+
+			updateMoveMap(whiteToMove);
 
 			whiteToMove = !whiteToMove;
 
@@ -227,6 +231,30 @@ void Board::debugDisplay()
 	}
 
 	std::cout << std::endl;
+
+	std::cout << "WhiteMoves: " << std::endl;
+	for (int i = 0; i < board.size(); ++i) {
+		std::cout << i + 1 << ": ";
+		for (int j = 0; j < board.size(); ++j) {
+			std::cout << getSquareFromMap({ j, i }, whiteMoveMap) << " ";
+		}
+		std::cout << "\n";
+	}
+
+	std::cout << "\nBlackMoves: " << std::endl;
+	for (int i = 0; i < board.size(); ++i) {
+		std::cout << i + 1 << ": ";
+		for (int j = 0; j < board.size(); ++j) {
+			std::cout << getSquareFromMap({ j, i }, blackMoveMap) << " ";
+		}
+		std::cout << "\n";
+	}
+}
+
+void Board::initMoveMaps()
+{
+	updateMoveMap(true);
+	updateMoveMap(false);
 }
 
 bool Board::isValidIdx(int i, int j)
@@ -234,7 +262,7 @@ bool Board::isValidIdx(int i, int j)
 	return i >= 0 && i < 8 && j >= 0 && j < 8;;
 }
 
-void Board::setSelected(char piece, const sf::Vector2i& idx)
+void Board::getMoves(char piece, const sf::Vector2i& idx)
 {
 #pragma region Sliding Pieces
 	char unsignedPiece = (piece < 0) ? -piece : piece;
@@ -493,55 +521,232 @@ void Board::setSelected(char piece, const sf::Vector2i& idx)
 
 #pragma region king
 	if (unsignedPiece == King) {
+		unsigned long long& map = (piece < 0) ? whiteMoveMap : blackMoveMap;
+
 		if (idx.y - 1 >= 0) {
 			std::pair<char, bool>& square = board[idx.x][idx.y - 1];
 			if (square.first == NONE || (getSign(piece) != getSign(square.first))) {
-				square.second = true;
+				if (!getSquareFromMap({idx.x, idx.y - 1}, map))
+					square.second = true;
 			}
 
 			if (idx.x - 1 >= 0) {
 				std::pair<char, bool>&  square = board[idx.x - 1][idx.y - 1];
 				if (square.first == NONE || (getSign(piece) != getSign(square.first))) {
-					square.second = true;
+					if (!getSquareFromMap({ idx.x - 1, idx.y - 1 }, map))
+						square.second = true;
 				}
 			}
 			if (idx.x + 1 < 8) {
 				std::pair<char, bool>& square = board[idx.x + 1][idx.y - 1];
 				if (square.first == NONE || (getSign(piece) != getSign(square.first))) {
-					square.second = true;
+					if (!getSquareFromMap({ idx.x + 1, idx.y - 1 }, map))
+						square.second = true;
 				}
 			}
 		}
 		if (idx.y + 1 < 8) {
 			std::pair<char, bool>& square = board[idx.x][idx.y + 1];
 			if (square.first == NONE || (getSign(piece) != getSign(square.first))) {
-				square.second = true;
+				if (!getSquareFromMap({ idx.x, idx.y + 1 }, map))
+					square.second = true;
 			}
 
 			if (idx.x - 1 >= 0) {
 				std::pair<char, bool>& square = board[idx.x - 1][idx.y + 1];
 				if (square.first == NONE || (getSign(piece) != getSign(square.first))) {
-					square.second = true;
+					if (!getSquareFromMap({ idx.x - 1, idx.y + 1 }, map))
+						square.second = true;
 				}
 			}
 			if (idx.x + 1 < 8) {
 				std::pair<char, bool>& square = board[idx.x + 1][idx.y + 1];
 				if (square.first == NONE || (getSign(piece) != getSign(square.first))) {
-					square.second = true;
+					if (!getSquareFromMap({ idx.x + 1, idx.y + 1 }, map))
+						square.second = true;
 				}
 			}
 		}
 		if (idx.x - 1 >= 0) {
 			std::pair<char, bool>& square = board[idx.x - 1][idx.y];
 			if (square.first == NONE || (getSign(piece) != getSign(square.first))) {
-				square.second = true;
+				if (!getSquareFromMap({ idx.x - 1, idx.y }, map))
+					square.second = true;
 			}
 		}
 		if (idx.x + 1 < 8) {
 			std::pair<char, bool>& square = board[idx.x + 1][idx.y];
 			if (square.first == NONE || (getSign(piece) != getSign(square.first))) {
+				if (!getSquareFromMap({ idx.x + 1, idx.y }, map))
+					square.second = true;
+			}
+		}
+	}
+#pragma endregion
+}
+
+void Board::getAttacks(char piece, const sf::Vector2i& idx)
+{
+#pragma region Sliding Pieces
+	char unsignedPiece = (piece < 0) ? -piece : piece;
+
+	if (unsignedPiece == Rook || unsignedPiece == Queen) {
+		// Left
+		for (int i = idx.x - 1; i >= 0; --i) {
+			std::pair<char, bool>& square = board[i][idx.y];
+			square.second = true;
+		}
+		// Right
+		for (int i = idx.x + 1; i < 8; ++i) {
+			std::pair<char, bool>& square = board[i][idx.y];
+			square.second = true;
+		}
+		// Up
+		for (int i = idx.y - 1; i >= 0; --i) {
+			std::pair<char, bool>& square = board[idx.x][i];
+			square.second = true;
+		}
+		// Down
+		for (int i = idx.y + 1; i < 8; ++i) {
+			std::pair<char, bool>& square = board[idx.x][i];
+			square.second = true;
+		}
+	}
+	if (unsignedPiece == Bishop || unsignedPiece == Queen) {
+		// Left and Up
+		for (int i = -1; isValidIdx(idx.x + i, idx.y + i); --i) {
+			std::pair<char, bool>& square = board[idx.x + i][idx.y + i];
+			square.second = true;
+		}
+		// Right and Down
+		for (int i = 1; isValidIdx(idx.x + i, idx.y + i); ++i) {
+			std::pair<char, bool>& square = board[idx.x + i][idx.y + i];
+			square.second = true;
+		}
+		// Left and Down
+		for (int i = -1; isValidIdx(idx.x + i, idx.y - i); --i) {
+			std::pair<char, bool>& square = board[idx.x + i][idx.y - i];
+			square.second = true;
+		}
+		// Right and Up
+		for (int i = 1; isValidIdx(idx.x + i, idx.y - i); ++i) {
+			std::pair<char, bool>& square = board[idx.x + i][idx.y - i];
+			square.second = true;
+		}
+	}
+#pragma endregion
+
+#pragma region Pawns
+	// White
+	if (piece == Pawn) {
+		if (idx.y - 1 >= 0) {
+			if (idx.x - 1 >= 0) {
+				std::pair<char, bool>& square = board[idx.x - 1][idx.y - 1];
 				square.second = true;
 			}
+			if (idx.x + 1 < 8) {
+				std::pair<char, bool>& square = board[idx.x + 1][idx.y - 1];
+				square.second = true;
+			}
+		}
+	}
+	// Black
+	else if (piece == -Pawn) {
+		if (idx.y + 1 < 8) {
+			if (idx.x - 1 >= 0) {
+				std::pair<char, bool>& square = board[idx.x - 1][idx.y + 1];
+				square.second = true;
+			}
+			if (idx.x + 1 < 8) {
+				std::pair<char, bool>& square = board[idx.x + 1][idx.y + 1];
+				square.second = true;
+			}
+		}
+	}
+#pragma endregion
+
+#pragma region Knights
+	if (unsignedPiece == Knight) {
+
+		if (idx.x - 1 >= 0) {
+			if (idx.y - 2 >= 0) {
+				std::pair<char, bool>& square = board[idx.x - 1][idx.y - 2];
+				square.second = true;
+			}
+			if (idx.y + 2 < 8) {
+				std::pair<char, bool>& square = board[idx.x - 1][idx.y + 2];
+				square.second = true;
+			}
+		}
+		if (idx.x + 1 < 8) {
+			if (idx.y - 2 >= 0) {
+				std::pair<char, bool>& square = board[idx.x + 1][idx.y - 2];
+				square.second = true;
+			}
+			if (idx.y + 2 < 8) {
+				std::pair<char, bool>& square = board[idx.x + 1][idx.y + 2];
+				square.second = true;
+			}
+		}
+
+		if (idx.x - 2 >= 0) {
+			if (idx.y - 1 >= 0) {
+				std::pair<char, bool>& square = board[idx.x - 2][idx.y - 1];
+				square.second = true;
+			}
+			if (idx.y + 1 < 8) {
+				std::pair<char, bool>& square = board[idx.x - 2][idx.y + 1];
+				square.second = true;
+			}
+		}
+		if (idx.x + 2 < 8) {
+			if (idx.y - 1 >= 0) {
+				std::pair<char, bool>& square = board[idx.x + 2][idx.y - 1];
+				square.second = true;
+			}
+			if (idx.y + 1 < 8) {
+				std::pair<char, bool>& square = board[idx.x + 2][idx.y + 1];
+				square.second = true;
+			}
+		}
+	}
+#pragma endregion
+
+#pragma region king
+	if (unsignedPiece == King) {
+		if (idx.y - 1 >= 0) {
+			std::pair<char, bool>& square = board[idx.x][idx.y - 1];
+			square.second = true;
+
+			if (idx.x - 1 >= 0) {
+				std::pair<char, bool>& square = board[idx.x - 1][idx.y - 1];
+				square.second = true;
+			}
+			if (idx.x + 1 < 8) {
+				std::pair<char, bool>& square = board[idx.x + 1][idx.y - 1];
+				square.second = true;
+			}
+		}
+		if (idx.y + 1 < 8) {
+			std::pair<char, bool>& square = board[idx.x][idx.y + 1];
+			square.second = true;
+
+			if (idx.x - 1 >= 0) {
+				std::pair<char, bool>& square = board[idx.x - 1][idx.y + 1];
+				square.second = true;
+			}
+			if (idx.x + 1 < 8) {
+				std::pair<char, bool>& square = board[idx.x + 1][idx.y + 1];
+				square.second = true;
+			}
+		}
+		if (idx.x - 1 >= 0) {
+			std::pair<char, bool>& square = board[idx.x - 1][idx.y];
+			square.second = true;
+		}
+		if (idx.x + 1 < 8) {
+			std::pair<char, bool>& square = board[idx.x + 1][idx.y];
+			square.second = true;
 		}
 	}
 #pragma endregion
@@ -558,10 +763,61 @@ char* Board::getPiece(sf::Vector2f worldposition)
 	return nullptr;
 }
 
+bool Board::getSquareFromMap(sf::Vector2i idx, const unsigned long long& map)
+{
+	int positionalVal = idx.x + 8 * idx.y;
+	return static_cast<bool>(map & static_cast<unsigned long long>(pow(2, positionalVal)));
+}
+
+void Board::setSquareFromMap(bool val, sf::Vector2i idx, unsigned long long& map)
+{
+	int positionalVal = idx.x + 8 * idx.y;
+	unsigned long long num = static_cast<unsigned long long>(pow(2, positionalVal));
+	if (val) {
+		map = map | num;
+	}
+	else {
+		num = ~num;
+		map = map & num;
+	}
+}
+
 sf::Vector2f Board::getIdx(sf::Vector2f worldPosition)
 {
 	sf::Vector2f relativeMousePos = worldPosition - origin;
 	return sf::Vector2f(relativeMousePos.x / slotSize.x, relativeMousePos.y / slotSize.y);
+}
+
+void Board::updateMoveMap(bool white)
+{
+	// Getting map
+	unsigned long long& map = white ? whiteMoveMap : blackMoveMap;
+
+	std::array<std::array<std::pair<char, bool>, 8>, 8> tempBoard = board;
+
+	// Getting all possible moves
+	for (int i = 0; i < 8; ++i) {
+		for (int j = 0; j < 8; ++j) {
+			char piece = board[i][j].first;
+			if (piece == NONE) continue; // If no piece
+			if (white) {
+				if (piece < 0) continue; // If we are checking white but piece is black
+			}
+			else {
+				if (piece > 0) continue; // Vice-versa
+			}
+			getAttacks(piece, { i, j });
+		}
+	}
+
+	// Setting the map
+	for (int i = 0; i < 8; ++i) {
+		for (int j = 0; j < 8; ++j) {
+			setSquareFromMap(board[i][j].second, { i, j }, map);
+		}
+	}
+
+	board = tempBoard;
 }
 
 void Board::loadTextures()
