@@ -17,6 +17,13 @@
 *			- etc
 */
 
+enum GameState {
+	PLAYING,
+	STALEMATE,
+	WHITEWIN,
+	BLACKWIN
+};
+
 struct Selected {
 	char piece = NONE;
 	sf::Vector2f pos = {-1.0f, -1.0f};
@@ -32,18 +39,20 @@ private:
 
 private:
 	Selected selected;
+	GameState gamestate = PLAYING;
 	unsigned long long whiteMoveMap;
 	unsigned long long blackMoveMap;
-	char flags; /* 8 - bit:
-				*	0: Black in check
-				*	0: White in check
-				*	0: B_Rook2 first move
-				*	0: B_Rook1 first move
-				*	0: W_Rook2 first move
-				*	0: W_Rook1 first move
-				*	0: B_King first move
-				*	0: W_King first move
-				*/
+	/* 8 - bit:
+	*	8: Black in check
+	*	7: White in check
+	*	6: B_Rook2 first move
+	*	5: B_Rook1 first move
+	*	4: W_Rook2 first move
+	*	3: W_Rook1 first move
+	*	2: B_King first move
+	*	1: W_King first move
+	*/
+	char flags;
 
 public:
 	bool whiteToMove = true;
@@ -55,17 +64,22 @@ public:
 	void reset();
 	void update();
 	void display();
+	void setFlags();
 	void debugDisplay();
 	void initMoveMaps();
+	void detectEndGame();
+	void setCheckedFlag();
 	void set(std::string FEN);
+	bool isChecked(bool white);
 	bool isValidIdx(int i, int j);
 	void updateMoveMap(bool white);
 	char* getPiece(sf::Vector2f worldposition);
 	sf::Vector2f getIdx(sf::Vector2f worldPosition);
-	void getMoves(char piece, const sf::Vector2i& idx);
-	void getAttacks(char piece, const sf::Vector2i& idx);
+	bool getMoves(char piece, const sf::Vector2i& idx);
+	bool isThisMovedChecked(char piece, std::pair<char, bool>& square);
 	bool getSquareFromMap(sf::Vector2i idx, const unsigned long long& map);
 	void setSquareFromMap(bool val, sf::Vector2i idx, unsigned long long& map);
+	void getAttacks(char piece, const sf::Vector2i& idx, unsigned long long& map);
 
 private:
 	void loadTextures();
