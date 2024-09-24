@@ -111,12 +111,6 @@ void Board::update()
 	if (gamestate != PLAYING) return;
 #pragma endregion
 
-#pragma region Selected Piece
-	if (selected.piece != NONE) {
-		getMoves(selected.piece, sf::Vector2i(selected.pos));
-	}
-#pragma endregion
-
 #pragma region Input
 	sf::Vector2f mousePos = sf::Vector2f(sf::Mouse::getPosition(window));
 
@@ -128,6 +122,8 @@ void Board::update()
 					selected.piece = *piece;
 					selected.pos = getIdx(mousePos);
 					*piece = NONE;
+
+					getMoves(selected.piece, sf::Vector2i(selected.pos));
 				}
 			}
 		}
@@ -250,8 +246,6 @@ void Board::display()
 
 			black = !black;
 			position.y += slotSize.y;
-
-			slot.second = false; // Resetting the square to NOT be selected
 		}
 		black = !black;
 
@@ -331,6 +325,7 @@ void Board::detectEndGame()
 
 	for (int i = 0; i < 8; ++i) {
 		for (int j = 0; j < 8; ++j) {
+			temp_board[i][j].second = false; // reset moves
 			char piece = temp_board[i][j].first;
 			if (piece < 0) {
 				if (canBlackMove) continue;
